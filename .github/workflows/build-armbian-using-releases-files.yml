@@ -184,6 +184,7 @@ on:
           - zcube1-max
           - zk-r39a
           - zysj
+          - k4-rk3399
       armbian_kernel:
         description: "Select kernel version."
         required: false
@@ -253,6 +254,8 @@ env:
 
 jobs:
   build:
+    env:
+      ACTIONS_STEP_DEBUG: true  
     runs-on: ubuntu-22.04
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
@@ -265,6 +268,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          set -x
           docker rmi $(docker images -q) 2>/dev/null
           [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android 2>/dev/null
@@ -281,6 +285,7 @@ jobs:
           sudo rm -rf ~/{.cargo,.dotnet,.rustup}
           sudo timedatectl set-timezone "${TZ}"
           echo "status=success" >> ${GITHUB_OUTPUT}
+          pwd && ls -l
 
       - name: Create simulated physical disk
         run: |
@@ -299,6 +304,7 @@ jobs:
           sudo mount /dev/github/runner /builder
           sudo chown -R runner.runner /builder
           df -Th
+          pwd && ls -l
 
       - name: Download Armbian from Releases
         id: down
@@ -308,7 +314,7 @@ jobs:
           armbian_buildpath="build/output/images"
           [[ -d "${armbian_buildpath}" ]] || mkdir -p "${armbian_buildpath}"
           ln -sf /builder/build ${GITHUB_WORKSPACE}/build
-          ln -sf /builder/build /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/build
+          #ln -sf /builder/build /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/build
 
           latest_version=$(curl -s \
                 -H "Accept: application/vnd.github+json" \
@@ -334,9 +340,13 @@ jobs:
 
           echo "build_tag=Armbian_${{ inputs.set_release }}_${{ inputs.armbian_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
           echo "status=success" >> ${GITHUB_OUTPUT}
+          pwd && ls -l
+          echo "cd ${GITHUB_WORKSPACE}"
+          cd ${GITHUB_WORKSPACE}
+          pwd && ls -l
 
       - name: Rebuild Armbian [ ${{ inputs.set_release }} ]
-        uses: ophub/amlogic-s9xxx-armbian@main
+        uses: ./
         if: ${{ steps.down.outputs.status }} == 'success' && !cancelled()
         with:
           build_target: armbian
